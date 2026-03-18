@@ -1,5 +1,1 @@
-# Ignore actual source configs (may contain private repo URLs)
-sources.d/*.conf
-
-# Keep the sample
-!sources.d/example.conf.sample
+.DS_Store

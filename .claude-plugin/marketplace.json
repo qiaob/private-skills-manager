@@ -1,0 +1,10 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "my-private-marketplace",
+  "description": "Private Claude Code plugin marketplace",
+  "owner": {
+    "name": "",
+    "email": ""
+  },
+  "plugins": []
+}

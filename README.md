@@ -1,154 +1,121 @@
-# Claude Code Skills Manager
+# Private Marketplace for Claude Code
 
-从多个 Git 仓库或本地目录同步 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skills。
+搭建团队私有的 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Plugin Marketplace。Fork 本仓库，添加你的 Plugin，团队成员通过 `/plugin` → `Marketplaces` → `+ Add Marketplace` 即可使用。
 
-## 安装
+## 快速开始
 
-```bash
-git clone https://github.com/user/skills-manager.git ~/.claude/skills/skills-manager
-```
+### 1. Fork 本仓库
 
-## 使用
+在 GitHub 上 fork 到你的组织（可设为 private repo）。
 
-### 1. 添加源
-
-在 `sources.d/` 下创建 `.conf` 文件，文件名即源名：
+### 2. 初始化
 
 ```bash
-cat > ~/.claude/skills/skills-manager/sources.d/my-source.conf << 'EOF'
-REPO=https://github.com/org/skills-repo.git
-BRANCH=main
-SKILLS_SUBDIR=skills
-EOF
+git clone git@github.com:your-org/your-marketplace.git
+cd your-marketplace
+bash manage.sh init my-marketplace --owner "Your Team" --email "team@example.com"
 ```
 
-### 2. 同步
+### 3. 添加 Plugin
+
+**新建 Plugin：**
 
 ```bash
-# 安装/更新所有 Skills
-bash ~/.claude/skills/skills-manager/sync.sh
-
-# 或在 Claude Code 中直接说："install skills" / "update skills"
+bash manage.sh add db-query -d "Query production database" -c database -a "Backend Team"
+# 编辑生成的 SKILL.md
+vim plugins/db-query/skills/db-query/SKILL.md
 ```
 
-### 3. 其他操作
+**导入已有 Skill：**
 
 ```bash
-sync.sh --dry-run             # 仅检查，不修改
-sync.sh --list                # 列出已安装 Skills
-sync.sh --only <skill-name>   # 只同步指定 Skill
-sync.sh --source <source>     # 只同步指定源
-sync.sh --remove <skill-name> # 移除 Skill
-sync.sh --no-hooks            # 跳过 post-install.sh
+bash manage.sh import ~/.claude/skills/my-existing-skill
 ```
 
-可组合：`sync.sh --source work --only my-skill`
-
-## 源配置
-
-### 公开仓库（HTTPS）
-
-```conf
-REPO=https://github.com/org/repo.git
-BRANCH=main
-SKILLS_SUBDIR=skills
-```
-
-### 私有仓库（SSH + 指定私钥）
-
-适用于多 GitHub 账号场景：
-
-```conf
-REPO=git@github.com:org/repo.git
-BRANCH=main
-SKILLS_SUBDIR=skills
-SSH_KEY=~/.ssh/id_ed25519_work
-```
-
-### 私有仓库（HTTPS + Token）
-
-Token 不写入配置文件，只引用环境变量名：
-
-```conf
-REPO=https://github.com/org/repo.git
-BRANCH=main
-SKILLS_SUBDIR=skills
-GIT_TOKEN_ENV=GITHUB_TOKEN
-```
+### 4. 提交并推送
 
 ```bash
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxx  # 在 shell 配置中设置
+git add -A && git commit -m "add db-query plugin" && git push
 ```
 
-### 本地目录
+### 5. 团队成员使用
 
-开发调试自己的 Skill 时使用：
-
-```conf
-REPO=~/projects/my-skills
-TYPE=local
-SKILLS_SUBDIR=skills
-```
-
-### 字段参考
-
-| 字段 | 必填 | 默认 | 说明 |
-|------|------|------|------|
-| `REPO` | 是 | - | Git 仓库地址或本地路径 |
-| `BRANCH` | git 源必填 | - | 分支名 |
-| `SKILLS_SUBDIR` | 是 | - | Skills 所在子目录 |
-| `TYPE` | 否 | `git` | `git` 或 `local` |
-| `SSH_KEY` | 否 | 系统默认 | SSH 私钥路径 |
-| `GIT_TOKEN_ENV` | 否 | - | Token 环境变量名 |
-
-## 编写 Skill
-
-仓库中每个包含 `SKILL.md` 的子目录会被自动识别为一个 Skill：
+在 Claude Code 中：
 
 ```
-your-repo/skills/
-├── my-skill/
-│   ├── SKILL.md           # 必须 — Skill 描述和触发规则
-│   ├── setup.conf         # 可选 — 声明前置依赖
-│   ├── post-install.sh    # 可选 — 安装后自动执行
-│   └── helper.sh          # 其他文件
-└── another-skill/
-    └── SKILL.md
+/plugin → Marketplaces → + Add Marketplace → your-org/your-marketplace
+```
+
+之后在 `Discover` 标签下即可安装。
+
+## 管理命令
+
+```bash
+manage.sh init <name> --owner "x" [--email "x"] [--description "x"]
+manage.sh add <name> -d "description" [-c category] [-a author]
+manage.sh import <skill-dir> [--as <plugin-name>]
+manage.sh remove <name>
+manage.sh list
+manage.sh build                        # 从 plugins/ 重建 marketplace.json
+manage.sh help
+```
+
+**Categories:** development, productivity, deployment, database, testing, security, monitoring, design, learning
+
+## Plugin 结构
+
+每个 Plugin 是 `plugins/` 下的一个目录：
+
+```
+plugins/my-plugin/
+├── .claude-plugin/
+│   └── plugin.json            # 插件元数据（manage.sh 自动生成）
+└── skills/
+    └── my-plugin/
+        ├── SKILL.md           # Skill 描述和指令
+        └── ...                # 其他支持文件
 ```
 
 ### SKILL.md
 
 ```markdown
 ---
-name: my-skill
+name: my-plugin
 description: |
   描述这个 Skill 做什么。
-  Trigger when: 用户说了什么关键词时触发。
+  Trigger when: 触发条件。
 ---
 
 给 Claude 的具体指令...
 ```
 
-### setup.conf（可选）
+### plugin.json
 
-声明 Skill 运行需要的环境变量、文件或前置条件：
+由 `manage.sh` 自动生成和维护，格式为：
 
-```conf
-env|API_TOKEN|从 https://example.com 获取 Token
-file|~/.config/tool/config.json|运行 tool init 生成
-note||需要先安装 tool: brew install tool
+```json
+{
+  "name": "my-plugin",
+  "description": "Plugin description",
+  "author": { "name": "Author" }
+}
 ```
 
-### post-install.sh（可选）
+## 批量导入已有 Skills
 
-安装或更新后自动执行。适合生成索引、构建 Schema 等初始化操作。
+```bash
+for d in ~/.claude/skills/*/; do
+  [ -f "$d/SKILL.md" ] && bash manage.sh import "$d"
+done
+```
 
-## 多源与冲突
+## 私有仓库访问
 
-- 多个源可以同时使用，按文件名字母序处理
-- 同名 Skill 先到先得，后到的跳过并告警
-- 手动放在 `~/.claude/skills/` 的 Skill 不会被修改或删除
-- 切换来源：`sync.sh --remove X && sync.sh --only X --source other`
+团队成员需要对 GitHub 仓库有读取权限。确保：
+- 成员已加入 GitHub Organization
+- 仓库设为 Organization 可见（Internal）或明确授权
+
+Claude Code 使用本机的 Git 凭证（SSH key 或 `gh auth`）拉取 Marketplace。
 
 ## 许可证
 
